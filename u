@@ -1,0 +1,248 @@
+import pandas as pd  
+import matplotlib.pyplot as plt  
+from tkinter import *  
+from tkinter import ttk, messagebox  
+from openpyxl import Workbook, load_workbook  
+from tkinter import filedialog  
+  
+  
+# Данные о недвижимости  
+data = {"Объект": [], "Доходы": [], "Расходы": [], "Чистая прибыль": []}  
+  
+# Функция для добавления данных  
+def add_data():  
+    try:  
+        # Проверка названия объекта  
+        obj_name = entry_obj.get().strip()  
+        if not obj_name:  
+            raise ValueError("Название объекта не может быть пустым!")  
+        if obj_name in data["Объект"]:  
+            raise ValueError("Название объекта уже существует!")  
+  
+        # Проверка доходов  
+        income_input = entry_income.get().strip()  
+        if not income_input:  
+            raise ValueError("Поле 'Доходы' не может быть пустым!")  
+        if not income_input.replace('.', '', 1).isdigit():  
+            raise ValueError("Поле 'Доходы' должно содержать только числа!")  
+        income = float(income_input)  
+        if income < 0:  
+            raise ValueError("Доходы не могут быть отрицательными!")  
+  
+        # Проверка расходов  
+        expense_input = entry_expense.get().strip()  
+        if not expense_input:  
+            raise ValueError("Поле 'Расходы' не может быть пустым!")  
+        if not expense_input.replace('.', '', 1).isdigit():  
+            raise ValueError("Поле 'Расходы' должно содержать только числа!")  
+        expense = float(expense_input)  
+        if expense < 0:  
+            raise ValueError("Расходы не могут быть отрицательными!")  
+        
+        # Расчёт прибыли и налогов  
+        profit = income - expense  
+        tax = profit * 0.20 if profit > 0 else 0  
+  
+        # Сохранение данных  
+        data["Объект"].append(obj_name)  
+        data["Доходы"].append(income)  
+        data["Расходы"].append(expense)  
+        data["Чистая прибыль"].append(profit - tax)  
+  
+        # Обновление интерфейса  
+        update_text_area()  
+        update_summary(income, tax)  
+        update_combobox()  
+  
+        # Очистка полей ввода  
+        entry_obj.delete(0, END)  
+        entry_income.delete(0, END)  
+        entry_expense.delete(0, END)  
+    except ValueError as e:  
+        messagebox.showerror("Ошибка ввода", str(e)) 
+
+def show_graph():
+    plt.bar(data["Объект"], data["Доходы"], label="Доходы")
+    plt.bar(data["Объект"], data["Расходы"], label="Расходы")
+    plt.bar(data["Объект"], data["Чистая прибыль"], label="Чистая прибыль")
+    plt.xlabel("Объект")
+    plt.ylabel("Сумма")
+    plt.title("График доходности")
+    plt.legend()
+    plt.show()        
+  
+# Функция для обновления текстовой области  
+def update_text_area():  
+    text_area.delete("1.0", END)  
+    for i in range(len(data["Объект"])):  
+        объект = data["Объект"][i]  
+        доходы = data["Доходы"][i]  
+        расходы = data["Расходы"][i]  
+        прибыль = data["Чистая прибыль"][i]  
+  
+        if прибыль < 0:  
+            text_area.insert(  
+                END,  
+                f"{объект}: Доходы {доходы} руб., Расходы {расходы} руб., Прибыль {прибыль} руб.\n",  
+                "negative"  
+            )  
+        else:  
+            text_area.insert(  
+                END,  
+                f"{объект}: Доходы {доходы} руб., Расходы {расходы} руб., Прибыль {прибыль} руб.\n"  
+            )  
+    text_area.tag_config("negative", foreground="red")  
+  
+# Функция для отображения сводки по выбранному объекту  
+def show_object_details(event):
+    selected_obj = combo.get()
+    if selected_obj in data["Объект"]:
+        index = data["Объект"].index(selected_obj)
+        income = data["Доходы"][index]
+        expense = data["Расходы"][index]
+        profit = data["Чистая прибыль"][index]
+        tax = max(0, income - expense) * 0.2  # Налог 20% от прибыли
+
+        # Расшифровка налога
+        federal_budget = tax * 0.85  # Федеральный бюджет 17% от налога
+        regional_budget = tax * 0.15  # Региональный бюджет 3% от налога
+
+        # Очистка текстового поля
+        summary_text.delete("1.0", END)
+# Основная информация
+        summary_text.insert(
+            END,
+            f"Объект: {data['Объект'][index]}\n"
+            f"Доходы: {income} руб.\n"
+            f"Расходы: {expense} руб.\n"
+            f"Чистая прибыль: {profit} руб.\n"
+            f"Налог (20% от прибыли): {tax:.2f} руб.\n\n"
+        )
+
+        # Расшифровка налога
+        summary_text.insert(END, "Расшифровка налога:\n")
+        summary_text.insert(END, f"  - Федеральный бюджет: {federal_budget:.2f} руб.\n")
+        summary_text.insert(END, f"  - Региональный бюджет: {regional_budget:.2f} руб.\n")
+  
+        #
+
+  
+  
+# Функция для обновления выпадающего списка  
+def update_combobox():  
+    if data["Объект"]:  
+        combo["values"] = data["Объект"]  
+        combo.set("Выберите объект")  
+    else:  
+        combo["values"] = []  
+        combo.set("Нет доступных объектов")  
+  
+  
+# Функция для обновления сводной информации  
+def update_summary(total_income, total_tax):
+    summary_text.delete("1.0", END)
+    federal_budget = total_tax * 0.85  # Федеральный бюджет 60% от налога
+    regional_budget = total_tax * 0.15  # Региональный бюджет 40% от налога
+    summary_text.insert(END, f"Общая сумма налога: {total_tax:.2f} руб.\n")
+    summary_text.insert(END, f"Чистая прибыль после налога: {total_income - total_tax:.2f} руб.\n")
+    summary_text.insert(END, "\nРасшифровка 20% налога:\n")
+    summary_text.insert(END, f"  - Федеральный бюджет: {federal_budget:.2f} руб.\n")
+    summary_text.insert(END, f"  - Региональный бюджет: {regional_budget:.2f} руб.\n")
+  
+# Функция сохранения данных в Excel  
+def save_data_excel():  
+    file = filedialog.asksaveasfilename(defaultextension=".xlsx", filetypes=[("Excel files", "*.xlsx")])  
+    if file:  
+        try:  
+            wb = Workbook()  
+            ws = wb.active  
+            ws.title = "Данные доходности"  
+            ws.append(["Объект", "Доходы", "Расходы", "Чистая прибыль"])  
+            ws.merge_cells(start_row=1, start_column=5, end_row=1, end_column=5)  
+            ws.cell(row=1, column=5, value="Налоги")  
+  
+            for i in range(len(data["Объект"])):  
+                tax = max(0, data["Доходы"][i] - data["Расходы"][i]) * 0.25  
+                ws.append([data["Объект"][i], data["Доходы"][i], data["Расходы"][i], data["Чистая прибыль"][i], tax])  
+  
+            wb.save(file)  
+            messagebox.showinfo("Успех", f"Данные успешно сохранены в файл: {file}")  
+        except Exception as e:  
+            messagebox.showerror("Ошибка", f"Не удалось сохранить данные: {e}")  
+  
+# Функция загрузки данных из Excel  
+def load_data_excel():  
+    file = filedialog.askopenfilename(filetypes=[("Excel files", "*.xlsx")])  
+    if file:  
+        wb = load_workbook(file)  
+        ws = wb.active  
+        data["Объект"].clear()  
+        data["Доходы"].clear()  
+        data["Расходы"].clear()  
+        data["Чистая прибыль"].clear()  
+        for row in ws.iter_rows(min_row=2, values_only=True):  
+            data["Объект"].append(row[0])  
+            data["Доходы"].append(float(row[1]))  
+            data["Расходы"].append(float(row[2]))  
+            data["Чистая прибыль"].append(float(row[3]))  
+        update_text_area()  
+        update_combobox()  
+        messagebox.showinfo("Успех", "Данные успешно загружены из файла!")  
+  
+def validate_numeric_input(value, field_name):  
+    try:  
+        value = float(value)  
+        if value < 0:  
+            raise ValueError(f"В поле '{field_name}' значение не может быть отрицательным!")  
+        return value  
+    except ValueError as e:  
+        messagebox.showerror("Ошибка ввода", str(e))  
+        return None  
+  
+  
+  
+# Интерфейс программы  
+root = Tk()  
+root.title("Анализ доходности")  
+root.geometry("1920x1080")  
+  
+# Выпадающий список для выбора объекта  
+combo = ttk.Combobox(root, values=data["Объект"], state="readonly", width=30)  
+combo.bind("<<ComboboxSelected>>", show_object_details)  
+combo.place(relx=0.5, rely=0.2, anchor=CENTER)  
+  
+# Текстовая область для сводки  
+summary_text = Text(root, height=8, width=40,
+font=("Arial", 12), bg="white", bd=2, relief=SOLID)  
+summary_text.place(relx=0.2, rely=0.2, anchor=W)  
+  
+# Поля ввода данных  
+# Поля ввода данных  
+frame = Frame(root, bg="#f0f0f0", padx=10, pady=10, bd=2, relief=RIDGE)  
+frame.place(relx=0.5, rely=0.3, anchor=CENTER)  
+Label(frame, text="Название объекта", font=("Arial", 12), bg="#f0f0f0").grid(row=0, column=0, padx=10, pady=5)  
+entry_obj = Entry(frame, font=("Arial", 12), width=20)  
+entry_obj.grid(row=0, column=1, padx=10, pady=5)  
+Label(frame, text="Доходы", font=("Arial", 12), bg="#f0f0f0").grid(row=1, column=0, padx=10, pady=5)  
+entry_income = Entry(frame, font=("Arial", 12), width=20)  # Убрана ошибка 
+entry_income.grid(row=1, column=1, padx=10, pady=5)  
+Label(frame, text="Расходы", font=("Arial", 12), bg="#f0f0f0").grid(row=2, column=0, padx=10, pady=5)  
+entry_expense = Entry(frame, font=("Arial", 12), width=20)  
+entry_expense.grid(row=2, column=1, padx=10, pady=5) 
+ 
+  
+# Кнопки  
+# Кнопки  
+button_frame = Frame(root, bg="#f0f0f0")  
+button_frame.place(relx=0.5, rely=0.5, anchor=CENTER)  
+Button(button_frame, text="Добавить данные", font=("Arial", 14), bg="#0080FF", fg="white", command=add_data, padx=20).grid(row=0, column=0, padx=20, pady=10)  
+Button(button_frame, text="Сохранить данные", font=("Arial", 14), bg="#FF8000", fg="white", command=save_data_excel, padx=20).grid(row=0, column=2, padx=20, pady=10)  
+Button(button_frame, text="Загрузить из Excel", font=("Arial", 14), bg="#00BFFF", fg="white", command=load_data_excel, padx=20).grid(row=0, column=3, padx=20, pady=10)  
+Button(button_frame, text="Показать график", font=("Arial", 14), bg="#0080FF", fg="white", command=show_graph, padx=20).grid(row=0, column=4, padx=20, pady=10)
+
+
+# Текстовая область для отображения данных  
+text_area = Text(root, height=10, width=80, font=("Arial", 12), bg="white", bd=2, relief=SOLID)  
+text_area.place(relx=0.5, rely=0.8, anchor=CENTER)  
+  
+root.mainloop()
